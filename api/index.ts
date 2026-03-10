@@ -107,14 +107,17 @@ app.post("/api/auth/login", async (req, res) => {
       photoURL = payload.picture || null;
     }
 
+    const adminEmail = process.env.ADMIN_EMAIL;
     let user = storage.users.find((u) => u.uid === firebaseUid);
     if (!user) {
-      user = { uid: firebaseUid, email, displayName, photoURL, role: "user", credits: 10, blocked: false };
+      const role = adminEmail && email === adminEmail ? "admin" : "user";
+      user = { uid: firebaseUid, email, displayName, photoURL, role, credits: 100, blocked: false };
       storage.users.push(user);
     } else {
       user.email = email;
       user.displayName = displayName;
       user.photoURL = photoURL;
+      if (adminEmail && email === adminEmail) user.role = "admin";
     }
 
     if (user.blocked) {
