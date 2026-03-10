@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import admin from "firebase-admin";
+import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
@@ -16,16 +17,12 @@ if (!admin.apps.length) {
   }
 }
 
+const db = getFirestore();
+
 const app = express();
 
-// In-memory storage (projetos e logs persistem enquanto a instância viver)
+// In-memory storage only for agents (persisted via Vercel env vars)
 const storage = {
-  projects: [] as any[],
-  logs: [] as any[],
-  credits: {} as Record<string, number>,   // uid → credits
-  roles: {} as Record<string, string>,     // uid → role
-  blocked: {} as Record<string, boolean>,  // uid → blocked
-  profiles: {} as Record<string, { email: string; displayName: string | null; photoURL: string | null }>,
   agents: {
     ebook: process.env.TESS_AGENT_EBOOK || "",
     lesson_plan: process.env.TESS_AGENT_PLANO || "",
@@ -48,33 +45,52 @@ async function decodeToken(token: string) {
   return { uid: payload.user_id || payload.sub, email: payload.email, name: payload.name, picture: payload.picture };
 }
 
-function buildUser(decoded: any) {
-  const uid: string = decoded.uid;
-  const email: string = decoded.email || "";
+async function buildUser(uid: string, profile?: { email: string; displayName: string | null; photoURL: string | null }) {
   const adminEmail = process.env.ADMIN_EMAIL || "";
+  const ref = db.collection("users").doc(uid);
+  const snap = await ref.get();
 
-  const isAdmin = adminEmail && email.trim().toLowerCase() === adminEmail.trim().toLowerCase();
-  const role = storage.roles[uid] ?? (isAdmin ? "admin" : "user");
-  if (isAdmin) storage.roles[uid] = "admin";
+  if (!snap.exists) {
+    const isAdmin = adminEmail && (profile?.email || "").trim().toLowerCase() === adminEmail.trim().toLowerCase();
+    const data = {
+      email: profile?.email || "",
+      displayName: profile?.displayName || null,
+      photoURL: profile?.photoURL || null,
+      credits: 10,
+      role: isAdmin ? "admin" : "user",
+      blocked: false,
+    };
+    await ref.set(data);
+    return { uid, ...data };
+  }
 
-  const credits = storage.credits[uid] ?? 10;
-  if (storage.credits[uid] === undefined) storage.credits[uid] = credits;
+  const data = snap.data()!;
 
-  // Persist profile so admin panel can show name/email
-  storage.profiles[uid] = {
-    email,
-    displayName: decoded.name || storage.profiles[uid]?.displayName || null,
-    photoURL: decoded.picture || storage.profiles[uid]?.photoURL || null,
-  };
+  // Update profile fields if provided
+  if (profile) {
+    const updates: Record<string, any> = {};
+    if (profile.email && profile.email !== data.email) updates.email = profile.email;
+    if (profile.displayName !== undefined && profile.displayName !== data.displayName) updates.displayName = profile.displayName;
+    if (profile.photoURL !== undefined && profile.photoURL !== data.photoURL) updates.photoURL = profile.photoURL;
+
+    // Promote to admin if email matches
+    const isAdmin = adminEmail && (profile.email || "").trim().toLowerCase() === adminEmail.trim().toLowerCase();
+    if (isAdmin && data.role !== "admin") updates.role = "admin";
+
+    if (Object.keys(updates).length > 0) {
+      await ref.update(updates);
+      Object.assign(data, updates);
+    }
+  }
 
   return {
     uid,
-    email,
-    displayName: storage.profiles[uid].displayName,
-    photoURL: storage.profiles[uid].photoURL,
-    role,
-    credits,
-    blocked: storage.blocked[uid] ?? false,
+    email: data.email || "",
+    displayName: data.displayName || null,
+    photoURL: data.photoURL || null,
+    credits: data.credits ?? 10,
+    role: data.role || "user",
+    blocked: data.blocked ?? false,
   };
 }
 
@@ -87,7 +103,11 @@ const requireAuth = async (req: any, res: any, next: any) => {
   }
   try {
     const decoded = await decodeToken(authHeader.slice(7));
-    req.user = buildUser(decoded);
+    req.user = await buildUser(decoded.uid, {
+      email: decoded.email || "",
+      displayName: decoded.name || null,
+      photoURL: decoded.picture || null,
+    });
     if (req.user.blocked) return res.status(403).json({ error: "Conta bloqueada." });
     next();
   } catch {
@@ -102,18 +122,6 @@ const requireAdmin = async (req: any, res: any, next: any) => {
   });
 };
 
-function addLog(userId: string, userEmail: string, action: string, contentType: string) {
-  storage.logs.unshift({
-    id: Math.random().toString(36).substring(7),
-    userId,
-    userEmail,
-    action,
-    contentType,
-    createdAt: new Date().toISOString(),
-  });
-  if (storage.logs.length > 500) storage.logs = storage.logs.slice(0, 500);
-}
-
 // ─── Health ───────────────────────────────────────────────────────────────────
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
@@ -125,7 +133,11 @@ app.post("/api/auth/login", async (req, res) => {
     const { idToken } = req.body;
     if (!idToken) return res.status(400).json({ error: "Missing idToken" });
     const decoded = await decodeToken(idToken);
-    const user = buildUser(decoded);
+    const user = await buildUser(decoded.uid, {
+      email: decoded.email || "",
+      displayName: decoded.name || null,
+      photoURL: decoded.picture || null,
+    });
     if (user.blocked) return res.status(403).json({ error: "Conta bloqueada. Entre em contato com o suporte." });
     res.json(user);
   } catch (error: any) {
@@ -138,7 +150,11 @@ app.get("/api/auth/me", async (req, res) => {
   if (!authHeader?.startsWith("Bearer ")) return res.json(null);
   try {
     const decoded = await decodeToken(authHeader.slice(7));
-    res.json(buildUser(decoded));
+    res.json(await buildUser(decoded.uid, {
+      email: decoded.email || "",
+      displayName: decoded.name || null,
+      photoURL: decoded.picture || null,
+    }));
   } catch {
     res.json(null);
   }
@@ -148,39 +164,40 @@ app.post("/api/auth/logout", (_req, res) => res.json({ success: true }));
 
 // ─── Projects ─────────────────────────────────────────────────────────────────
 
-app.get("/api/projects", requireAuth, (req: any, res) => {
-  res.json(storage.projects.filter((p) => p.userId === req.user.uid));
+app.get("/api/projects", requireAuth, async (req: any, res) => {
+  const snap = await db.collection("projects").where("userId", "==", req.user.uid).orderBy("createdAt", "desc").get();
+  res.json(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
 });
 
-app.get("/api/projects/:id", requireAuth, (req: any, res) => {
-  const project = storage.projects.find((p) => p.id === req.params.id && p.userId === req.user.uid);
-  if (!project) return res.status(404).json({ error: "Not found" });
-  res.json(project);
+app.get("/api/projects/:id", requireAuth, async (req: any, res) => {
+  const doc = await db.collection("projects").doc(req.params.id).get();
+  if (!doc.exists || doc.data()?.userId !== req.user.uid) return res.status(404).json({ error: "Not found" });
+  res.json({ id: doc.id, ...doc.data() });
 });
 
-app.post("/api/projects", requireAuth, (req: any, res) => {
+app.post("/api/projects", requireAuth, async (req: any, res) => {
   const { type, title, briefing } = req.body;
-  const id = Math.random().toString(36).substring(7);
   const now = new Date().toISOString();
   const project = {
-    id,
     userId: req.user.uid,
     title: title || briefing?.main_topic || "Novo Projeto",
     type,
     status: "draft",
     content: "",
-    briefing,
+    briefing: briefing || null,
     outline: { chapters: [] },
     createdAt: now,
     updatedAt: now,
   };
-  storage.projects.unshift(project);
-  res.json(project);
+  const ref = await db.collection("projects").add(project);
+  res.json({ id: ref.id, ...project });
 });
 
-app.put("/api/projects/:id", requireAuth, (req: any, res) => {
-  const idx = storage.projects.findIndex((p) => p.id === req.params.id && p.userId === req.user.uid);
-  if (idx === -1) return res.status(404).json({ error: "Not found" });
+app.put("/api/projects/:id", requireAuth, async (req: any, res) => {
+  const docRef = db.collection("projects").doc(req.params.id);
+  const doc = await docRef.get();
+  if (!doc.exists || doc.data()?.userId !== req.user.uid) return res.status(404).json({ error: "Not found" });
+
   const { title, status, content, outline } = req.body;
   const now = new Date().toISOString();
   const updates: any = { updatedAt: now };
@@ -188,12 +205,16 @@ app.put("/api/projects/:id", requireAuth, (req: any, res) => {
   if (status !== undefined) updates.status = status;
   if (content !== undefined) updates.content = content;
   if (outline !== undefined) updates.outline = outline;
-  storage.projects[idx] = { ...storage.projects[idx], ...updates };
-  res.json(storage.projects[idx]);
+
+  await docRef.update(updates);
+  res.json({ id: req.params.id, ...doc.data(), ...updates });
 });
 
-app.delete("/api/projects/:id", requireAuth, (req: any, res) => {
-  storage.projects = storage.projects.filter((p) => !(p.id === req.params.id && p.userId === req.user.uid));
+app.delete("/api/projects/:id", requireAuth, async (req: any, res) => {
+  const docRef = db.collection("projects").doc(req.params.id);
+  const doc = await docRef.get();
+  if (!doc.exists || doc.data()?.userId !== req.user.uid) return res.status(404).json({ error: "Not found" });
+  await docRef.delete();
   res.json({ success: true });
 });
 
@@ -261,10 +282,17 @@ Retorne APENAS um JSON válido no formato:
 
     const outline = JSON.parse(jsonMatch[0]);
 
-    // Debit credit
-    storage.credits[user.uid] = Math.max(0, (storage.credits[user.uid] ?? 10) - 1);
-
-    addLog(user.uid, user.email || "", `Gerou ${type}`, type);
+    // Debit credit and add log in parallel
+    await Promise.all([
+      db.collection("users").doc(user.uid).update({ credits: FieldValue.increment(-1) }),
+      db.collection("logs").add({
+        userId: user.uid,
+        userEmail: user.email || "",
+        action: `Gerou ${type}`,
+        contentType: type,
+        createdAt: new Date().toISOString(),
+      }),
+    ]);
 
     res.json({ outline });
   } catch (error: any) {
@@ -275,35 +303,29 @@ Retorne APENAS um JSON válido no formato:
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 
-app.get("/api/admin/users", requireAdmin, (_req, res) => {
-  const allUids = new Set([
-    ...Object.keys(storage.credits),
-    ...Object.keys(storage.roles),
-    ...Object.keys(storage.profiles),
-  ]);
-  const users = Array.from(allUids).map((uid) => ({
-    uid,
-    email: storage.profiles[uid]?.email || null,
-    displayName: storage.profiles[uid]?.displayName || null,
-    photoURL: storage.profiles[uid]?.photoURL || null,
-    role: storage.roles[uid] || "user",
-    credits: storage.credits[uid] ?? 10,
-    blocked: storage.blocked[uid] ?? false,
-  }));
+app.get("/api/admin/users", requireAdmin, async (_req, res) => {
+  const snap = await db.collection("users").get();
+  const users = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
   res.json(users);
 });
 
-app.patch("/api/admin/users/:uid", requireAdmin, (req, res) => {
+app.patch("/api/admin/users/:uid", requireAdmin, async (req, res) => {
   const { uid } = req.params;
   const { role, credits, blocked } = req.body;
-  if (role !== undefined) storage.roles[uid] = role;
-  if (credits !== undefined) storage.credits[uid] = Number(credits);
-  if (blocked !== undefined) storage.blocked[uid] = blocked;
-  res.json({ uid, role: storage.roles[uid], credits: storage.credits[uid], blocked: storage.blocked[uid] });
+  const updates: Record<string, any> = {};
+  if (role !== undefined) updates.role = role;
+  if (credits !== undefined) updates.credits = Number(credits);
+  if (blocked !== undefined) updates.blocked = blocked;
+
+  const ref = db.collection("users").doc(uid);
+  await ref.set(updates, { merge: true });
+  const snap = await ref.get();
+  res.json({ uid, ...snap.data() });
 });
 
-app.get("/api/admin/logs", requireAdmin, (_req, res) => {
-  res.json(storage.logs);
+app.get("/api/admin/logs", requireAdmin, async (_req, res) => {
+  const snap = await db.collection("logs").orderBy("createdAt", "desc").limit(500).get();
+  res.json(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
 });
 
 app.get("/api/admin/agents", requireAdmin, (_req, res) => {
