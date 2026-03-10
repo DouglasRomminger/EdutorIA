@@ -59,9 +59,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, setView, currentView }
         </nav>
 
         <div className="mt-auto flex flex-col gap-8 items-center">
-          <button className="text-white/20 hover:text-neon-cyan transition-colors duration-500">
-            <Settings className="w-5 h-5" />
-          </button>
+          {user?.role === 'admin' && (
+            <button
+              onClick={() => setView('admin')}
+              className={`transition-colors duration-500 ${currentView === 'admin' ? 'text-neon-cyan' : 'text-white/20 hover:text-neon-cyan'}`}
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          )}
           <button 
             onClick={logout}
             className="w-10 h-10 rounded-full border border-white/5 flex items-center justify-center hover:border-red-500/40 hover:text-red-500 transition-all duration-500"
