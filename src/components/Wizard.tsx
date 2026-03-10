@@ -1,28 +1,37 @@
 import React, { useState } from 'react';
-import { Briefing } from '../types';
+import { Briefing, ContentType } from '../types';
 import { api } from '../api';
-import { GoogleGenAI } from "@google/genai";
-import { PROJECT_TYPE_LABELS } from '../constants';
-import { 
-  BookOpen, 
-  FileText, 
-  Presentation, 
-  Sparkles, 
-  ArrowRight, 
-  RefreshCw 
+import { CONTENT_TYPES } from '../constants';
+import {
+  BookOpen,
+  FileText,
+  Presentation,
+  Image as ImageIcon,
+  Sparkles,
+  ArrowRight,
+  RefreshCw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
+const TYPE_ICONS: Record<ContentType, React.ElementType> = {
+  ebook: BookOpen,
+  lesson_plan: FileText,
+  slides: Presentation,
+  images: ImageIcon,
+};
+
 interface WizardProps {
+  contentType: ContentType;
   onCancel: () => void;
   onComplete: (projectId: string) => void;
 }
 
-export const Wizard: React.FC<WizardProps> = ({ onCancel, onComplete }) => {
+export const Wizard: React.FC<WizardProps> = ({ contentType, onCancel, onComplete }) => {
   const [step, setStep] = useState(1);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const [briefing, setBriefing] = useState<Briefing>({
-    material_type: '',
+    material_type: contentType,
     main_topic: '',
     target_audience: '',
     objective: '',
@@ -30,51 +39,55 @@ export const Wizard: React.FC<WizardProps> = ({ onCancel, onComplete }) => {
     language: 'Português',
     length: 'medium',
     extras: [],
-    references: ''
+    references: '',
   });
+
+  const typeInfo = CONTENT_TYPES.find(t => t.id === contentType)!;
+  const TypeIcon = TYPE_ICONS[contentType];
 
   const handleGenerate = async () => {
     setIsGenerating(true);
+    setGenError(null);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const prompt = `Gere um sumário estruturado para um ${briefing.material_type} sobre "${briefing.main_topic}". 
-      Público: ${briefing.target_audience}. Tom: ${briefing.tone}.
-      Retorne APENAS um JSON no formato: { "chapters": [{ "title": "...", "sections": ["...", "..."], "status": "pending" }] }`;
+      const { outline } = await api.generate(contentType, briefing);
 
-      const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ parts: [{ text: prompt }] }],
+      const project = await api.createProject({
+        type: contentType,
+        title: briefing.main_topic,
+        briefing: { ...briefing, material_type: contentType },
       });
 
-      const projectId = Math.random().toString(36).substring(7);
-      const text = result.text;
-      const outline = JSON.parse(text.replace(/```json|```/g, ''));
+      // Update project with the generated outline
+      await api.updateProject(project.id, { outline, status: 'completed' });
 
-      console.log("Project created locally for visualization:", projectId);
-      onComplete(projectId);
-    } catch (error) {
-      console.error("Generation error:", error);
-      onComplete('demo-project-id');
+      onComplete(project.id);
+    } catch (err: any) {
+      setGenError(err.message || 'Erro na geração. Verifique o agente Tess configurado.');
     } finally {
       setIsGenerating(false);
     }
   };
 
+  const stepTitles = ['DEFINA O NÚCLEO', 'MAPEIE O PÚBLICO', 'SINTETIZAR'];
+
   return (
     <div className="max-w-5xl mx-auto py-12">
       <div className="glass-card p-16 relative overflow-hidden">
-        {/* Background Glow */}
         <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-neon-cyan/10 rounded-full blur-[100px] animate-pulse-slow" />
 
         {/* Header */}
         <div className="mb-16">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-2 h-2 bg-neon-cyan rounded-full" />
-            <span className="text-[10px] font-mono tracking-[0.5em] text-white/30 uppercase">Gerador Neural // Passo 0{step}</span>
+            <span className="text-[10px] font-mono tracking-[0.5em] text-white/30 uppercase">
+              {typeInfo.label} // Passo 0{step}
+            </span>
+            <div className="flex items-center gap-2 ml-auto px-4 py-2 bg-neon-cyan/5 border border-neon-cyan/20 rounded-full">
+              <TypeIcon className="w-3.5 h-3.5 text-neon-cyan" />
+              <span className="text-[9px] font-mono tracking-widest text-neon-cyan uppercase">{typeInfo.label}</span>
+            </div>
           </div>
-          <h2 className="text-5xl lg:text-7xl font-bold tracking-tighter">
-            {step === 1 ? 'DEFINA O NÚCLEO' : step === 2 ? 'MAPEIE O PÚBLICO' : 'SINTETIZAR'}
-          </h2>
+          <h2 className="text-5xl lg:text-7xl font-bold tracking-tighter">{stepTitles[step - 1]}</h2>
         </div>
 
         <AnimatePresence mode="wait">
@@ -86,48 +99,60 @@ export const Wizard: React.FC<WizardProps> = ({ onCancel, onComplete }) => {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-12"
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[
-                  { id: 'ebook', label: 'E-BOOK', icon: BookOpen, desc: 'Publicação digital abrangente' },
-                  { id: 'guide', label: 'GUIA PRÁTICO', icon: FileText, desc: 'Manual instrucional passo a passo' },
-                  { id: 'lesson_plan', label: 'PLANO DE AULA', icon: BookOpen, desc: 'Estrutura educacional organizada' },
-                  { id: 'presentation', label: 'APRESENTAÇÃO', icon: Presentation, desc: 'Slides visuais de alto impacto' },
-                ].map((type) => (
-                  <button
-                    key={type.id}
-                    onClick={() => setBriefing({ ...briefing, material_type: type.id })}
-                    className={`p-8 rounded-3xl border text-left transition-all duration-500 group ${
-                      briefing.material_type === type.id 
-                        ? 'bg-neon-cyan/5 border-neon-cyan/40 shadow-[0_0_30px_rgba(0,240,255,0.1)]' 
-                        : 'bg-white/[0.02] border-white/5 hover:border-white/20'
-                    }`}
-                  >
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 transition-all duration-500 ${
-                      briefing.material_type === type.id ? 'bg-neon-cyan text-obsidian' : 'bg-white/5 text-white/40'
-                    }`}>
-                      <type.icon className="w-6 h-6" />
-                    </div>
-                    <h4 className={`text-sm font-mono tracking-widest mb-2 ${briefing.material_type === type.id ? 'text-neon-cyan' : 'text-white/60'}`}>{type.label}</h4>
-                    <p className="text-xs text-white/30 font-light">{type.desc}</p>
-                  </button>
-                ))}
-              </div>
-
               <div className="space-y-4">
-                <label className="text-[10px] font-mono tracking-[0.4em] text-white/20 uppercase">Tópico Principal</label>
+                <label className="text-[10px] font-mono tracking-[0.4em] text-white/20 uppercase">
+                  {contentType === 'images' ? 'Tema / Conceito Visual' : 'Tópico Principal'}
+                </label>
                 <input
                   type="text"
-                  placeholder="Digite o assunto central do seu material..."
+                  placeholder={
+                    contentType === 'images'
+                      ? 'Descreva o tema ou conceito visual...'
+                      : contentType === 'lesson_plan'
+                      ? 'Ex: Revolução Francesa, Álgebra Linear...'
+                      : contentType === 'slides'
+                      ? 'Ex: Introdução ao React, Liderança...'
+                      : 'Digite o assunto central do seu material...'
+                  }
                   className="w-full bg-white/[0.03] border border-white/10 rounded-2xl px-8 py-6 text-xl font-light placeholder:text-white/10 focus:outline-none focus:border-neon-cyan/40 transition-all"
                   value={briefing.main_topic}
                   onChange={(e) => setBriefing({ ...briefing, main_topic: e.target.value })}
                 />
               </div>
 
-              <div className="flex justify-end">
+              {contentType !== 'images' && (
+                <div className="grid grid-cols-3 gap-4">
+                  {(['short', 'medium', 'long'] as const).map(len => (
+                    <button
+                      key={len}
+                      onClick={() => setBriefing({ ...briefing, length: len })}
+                      className={`p-5 rounded-2xl border text-left transition-all duration-300 ${
+                        briefing.length === len
+                          ? 'bg-neon-cyan/5 border-neon-cyan/40'
+                          : 'bg-white/[0.02] border-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <p className={`text-[10px] font-mono tracking-widest uppercase ${briefing.length === len ? 'text-neon-cyan' : 'text-white/40'}`}>
+                        {len === 'short' ? 'CURTO' : len === 'medium' ? 'MÉDIO' : 'LONGO'}
+                      </p>
+                      <p className="text-[9px] text-white/20 mt-1">
+                        {len === 'short' ? '~5 seções' : len === 'medium' ? '~10 seções' : '~20 seções'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-between items-center">
+                <button
+                  onClick={onCancel}
+                  className="text-[10px] font-mono tracking-widest text-white/20 hover:text-white uppercase transition-colors"
+                >
+                  Cancelar
+                </button>
                 <button
                   onClick={() => setStep(2)}
-                  disabled={!briefing.material_type || !briefing.main_topic}
+                  disabled={!briefing.main_topic}
                   className="group flex items-center gap-4 bg-white text-obsidian px-10 py-5 rounded-full font-bold hover:bg-neon-cyan transition-all duration-500 disabled:opacity-20"
                 >
                   CONTINUAR
@@ -186,7 +211,7 @@ export const Wizard: React.FC<WizardProps> = ({ onCancel, onComplete }) => {
                   onClick={() => setStep(1)}
                   className="text-[10px] font-mono tracking-widest text-white/20 hover:text-white uppercase transition-colors"
                 >
-                  Voltar ao Início
+                  Voltar
                 </button>
                 <button
                   onClick={() => setStep(3)}
@@ -212,7 +237,7 @@ export const Wizard: React.FC<WizardProps> = ({ onCancel, onComplete }) => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
                   <div>
                     <p className="text-[9px] font-mono tracking-widest text-white/20 uppercase mb-2">Tipo de Material</p>
-                    <p className="text-2xl font-medium text-neon-cyan">{PROJECT_TYPE_LABELS[briefing.material_type] || briefing.material_type.toUpperCase()}</p>
+                    <p className="text-2xl font-medium text-neon-cyan">{typeInfo.label}</p>
                   </div>
                   <div>
                     <p className="text-[9px] font-mono tracking-widest text-white/20 uppercase mb-2">Tópico Principal</p>
@@ -225,6 +250,12 @@ export const Wizard: React.FC<WizardProps> = ({ onCancel, onComplete }) => {
                 </div>
               </div>
 
+              {genError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl text-xs font-mono">
+                  {genError}
+                </div>
+              )}
+
               <div className="flex flex-col gap-6">
                 <button
                   onClick={handleGenerate}
@@ -234,7 +265,7 @@ export const Wizard: React.FC<WizardProps> = ({ onCancel, onComplete }) => {
                   {isGenerating ? (
                     <>
                       <RefreshCw className="w-6 h-6 animate-spin" />
-                      SINTETIZANDO CAMINHOS NEURAIS...
+                      SINTETIZANDO VIA TESS IA...
                     </>
                   ) : (
                     <>

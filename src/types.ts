@@ -5,13 +5,16 @@ export interface User {
   photoURL: string | null;
   role: 'admin' | 'user';
   credits: number;
+  blocked?: boolean;
 }
+
+export type ContentType = 'ebook' | 'lesson_plan' | 'slides' | 'images';
 
 export interface Project {
   id: string;
   userId: string;
   title: string;
-  type: 'ebook' | 'guide' | 'manual' | 'lesson_plan' | 'presentation';
+  type: ContentType | 'guide' | 'manual' | 'presentation';
   status: 'draft' | 'generating' | 'completed' | 'error';
   content: string;
   outline?: Outline;
@@ -41,4 +44,20 @@ export interface Chapter {
   sections: string[];
   content?: string;
   status: 'pending' | 'generating' | 'completed' | 'error';
+}
+
+export interface AdminLog {
+  id: string;
+  userId: string;
+  userEmail: string;
+  action: string;
+  contentType: string;
+  createdAt: string;
+}
+
+export interface AgentConfig {
+  ebook: string;
+  lesson_plan: string;
+  slides: string;
+  images: string;
 }

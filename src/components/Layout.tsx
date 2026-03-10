@@ -1,11 +1,11 @@
 import React from 'react';
 import { useAuth } from '../App';
-import { Home, PlusCircle, BookOpen, LogOut, User as UserIcon, Settings, Bell } from 'lucide-react';
+import { Home, PlusCircle, BookOpen, LogOut, Settings, Shield } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface LayoutProps {
   children: React.ReactNode;
-  setView: (view: 'dashboard' | 'wizard' | 'editor') => void;
+  setView: (view: 'dashboard' | 'wizard' | 'editor' | 'admin') => void;
   currentView: string;
 }
 
@@ -14,9 +14,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, setView, currentView }
 
   const menuItems = [
     { id: 'dashboard', label: 'INÍCIO', icon: Home },
-    { id: 'projects', label: 'ARQUIVO', icon: BookOpen },
     { id: 'wizard', label: 'GERAR', icon: PlusCircle },
-    { id: 'images', label: 'VISUAIS', icon: Bell },
+    ...(user?.role === 'admin' ? [{ id: 'admin', label: 'ADMIN', icon: Shield }] : []),
   ];
 
   return (
