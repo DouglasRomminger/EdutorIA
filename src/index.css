@@ -18,7 +18,8 @@
   body {
     @apply bg-obsidian text-white/90 antialiased selection:bg-neon-cyan/30 selection:text-white;
     font-feature-settings: "ss01", "ss02", "cv01";
-    transition: background-color 0.5s ease, color 0.5s ease;
+    transition: background-color 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   }
 }
 
@@ -36,7 +37,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 2rem;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+    transition: background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
   }
 
   .neon-text-glow {
@@ -52,148 +53,184 @@
   }
 }
 
-/* ─── Light Mode ─────────────────────────────────────────────────────────── */
+/* ─── Light Mode — "Ivory Editorial" ────────────────────────────────────── */
+/*
+   Paleta: fundo creme-marfim, cards brancos com sombras caligráficas,
+   tipografia em carvão-quente, acento em teal profundo.
+   Sensação: revista de design premium impressa em papel couchê.
+*/
 
 body.light {
-  background-color: #EEF2F7;
-  color: #111827;
-  --color-neon-cyan: #0099B8;
-  --color-neon-purple: #8B00CC;
+  background-color: #F5F0E8;
+  color: #1C1917;
 }
 
-/* Background geral */
+/* Fundo com textura editorial sutil */
 body.light .cosmic-bg {
   background:
-    radial-gradient(circle at 10% 20%, rgba(0, 153, 184, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 90% 80%, rgba(139, 0, 204, 0.05) 0%, transparent 50%),
-    linear-gradient(160deg, #EEF2F7 0%, #E2EAF4 50%, #DAE4F0 100%);
+    radial-gradient(ellipse at 15% 25%, rgba(180, 120, 60, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 75%, rgba(0, 140, 160, 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.6) 0%, transparent 40%),
+    linear-gradient(175deg, #F9F5EE 0%, #F2EDE2 40%, #EDE6D8 100%);
 }
 
-/* Cards */
+/* Dot grid sutil no fundo */
+body.light main::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(28, 25, 23, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Cards: papel branco com sombra caligráfica */
 body.light .glass-card {
-  background: rgba(255, 255, 255, 0.72);
-  border-color: rgba(148, 163, 184, 0.25);
+  background: rgba(255, 252, 247, 0.92);
+  border: 1px solid rgba(180, 160, 130, 0.2);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 8px 32px rgba(0, 0, 0, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    0 1px 2px rgba(28, 25, 23, 0.04),
+    0 4px 16px rgba(28, 25, 23, 0.06),
+    0 16px 40px rgba(28, 25, 23, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  backdrop-filter: none;
 }
 
 body.light .glass-card:hover {
-  background: rgba(255, 255, 255, 0.88);
-  border-color: rgba(0, 153, 184, 0.3);
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(0, 140, 160, 0.3);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 12px 40px rgba(0, 153, 184, 0.1),
+    0 1px 2px rgba(28, 25, 23, 0.04),
+    0 8px 24px rgba(0, 140, 160, 0.1),
+    0 20px 50px rgba(28, 25, 23, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 1);
 }
 
-/* Sidebar */
+/* Sidebar: marfim translúcido */
 body.light aside {
-  background: rgba(255, 255, 255, 0.6) !important;
-  border-right-color: rgba(148, 163, 184, 0.2) !important;
-  backdrop-filter: blur(20px) !important;
+  background: rgba(249, 245, 238, 0.85) !important;
+  border-right: 1px solid rgba(180, 160, 130, 0.2) !important;
+  backdrop-filter: blur(16px) !important;
 }
 
 /* Header */
 body.light header {
-  border-bottom-color: rgba(148, 163, 184, 0.15) !important;
+  border-bottom-color: rgba(180, 160, 130, 0.15) !important;
 }
 
 /* Footer */
 body.light footer {
-  background: rgba(255, 255, 255, 0.4) !important;
-  border-top-color: rgba(148, 163, 184, 0.15) !important;
+  background: rgba(245, 240, 232, 0.7) !important;
+  border-top-color: rgba(180, 160, 130, 0.15) !important;
 }
 
-/* ── Texto ── */
-body.light,
-body.light .text-white\/90 { color: #111827; }
-body.light .text-white\/80 { color: rgba(17, 24, 39, 0.8); }
-body.light .text-white\/60 { color: #4B5563; }
-body.light .text-white\/50 { color: #6B7280; }
-body.light .text-white\/40 { color: #6B7280; }
-body.light .text-white\/30 { color: #9CA3AF; }
-body.light .text-white\/20 { color: #9CA3AF; }
-body.light .text-white\/15 { color: #D1D5DB; }
+/* ── Tipografia ── */
+body.light                  { color: #1C1917; }
+body.light .text-white\/90  { color: #1C1917 !important; }
+body.light .text-white\/80  { color: rgba(28, 25, 23, 0.8) !important; }
+body.light .text-white\/60  { color: #57534E !important; }
+body.light .text-white\/50  { color: #78716C !important; }
+body.light .text-white\/40  { color: #78716C !important; }
+body.light .text-white\/30  { color: #A8A29E !important; }
+body.light .text-white\/20  { color: #A8A29E !important; }
+body.light .text-white\/15  { color: #C7BDB5 !important; }
 
-/* Cor cyan no modo claro */
-body.light .text-neon-cyan { color: #0099B8 !important; }
-body.light .text-neon-purple { color: #8B00CC !important; }
+/* Cyan → Teal editorial no modo claro */
+body.light .text-neon-cyan   { color: #007A8F !important; }
+body.light .text-neon-purple { color: #7C3AED !important; }
+
+body.light .neon-text-glow {
+  text-shadow: 0 0 20px rgba(0, 122, 143, 0.35);
+}
 
 /* ── Fundos ── */
-body.light .bg-obsidian { background-color: #EEF2F7 !important; }
-body.light .bg-obsidian\/40 { background-color: rgba(238, 242, 247, 0.8) !important; }
-body.light .bg-obsidian\/20 { background-color: rgba(238, 242, 247, 0.5) !important; }
-body.light .bg-white\/\[0\.02\] { background-color: rgba(255, 255, 255, 0.6) !important; }
-body.light .bg-white\/\[0\.03\] { background-color: rgba(255, 255, 255, 0.8) !important; }
-body.light .bg-white\/\[0\.04\] { background-color: rgba(255, 255, 255, 0.9) !important; }
-body.light .bg-white\/\[0\.05\] { background-color: rgba(255, 255, 255, 0.95) !important; }
-body.light .bg-white\/5  { background-color: rgba(0, 0, 0, 0.04) !important; }
-body.light .bg-white\/10 { background-color: rgba(0, 0, 0, 0.06) !important; }
+body.light .bg-obsidian         { background-color: #F5F0E8 !important; }
+body.light .bg-obsidian\/40     { background-color: rgba(245, 240, 232, 0.85) !important; }
+body.light .bg-obsidian\/20     { background-color: rgba(245, 240, 232, 0.6) !important; }
+body.light .bg-white\/\[0\.02\] { background-color: rgba(255, 252, 247, 0.7) !important; }
+body.light .bg-white\/\[0\.03\] { background-color: rgba(255, 252, 247, 0.85) !important; }
+body.light .bg-white\/\[0\.04\] { background-color: rgba(255, 252, 247, 0.92) !important; }
+body.light .bg-white\/\[0\.05\] { background-color: rgba(255, 255, 255, 0.96) !important; }
+body.light .bg-white\/5         { background-color: rgba(28, 25, 23, 0.04) !important; }
+body.light .bg-white\/10        { background-color: rgba(28, 25, 23, 0.06) !important; }
 
 /* ── Bordas ── */
-body.light .border-white\/5  { border-color: rgba(148, 163, 184, 0.2) !important; }
-body.light .border-white\/8  { border-color: rgba(148, 163, 184, 0.25) !important; }
-body.light .border-white\/10 { border-color: rgba(148, 163, 184, 0.3) !important; }
-body.light .border-white\/20 { border-color: rgba(100, 116, 139, 0.35) !important; }
-body.light .border-dashed    { border-color: rgba(148, 163, 184, 0.4) !important; }
-body.light .neo-brutalist-border { border-color: rgba(148, 163, 184, 0.25) !important; }
+body.light .border-white\/5  { border-color: rgba(180, 160, 130, 0.18) !important; }
+body.light .border-white\/8  { border-color: rgba(180, 160, 130, 0.22) !important; }
+body.light .border-white\/10 { border-color: rgba(180, 160, 130, 0.28) !important; }
+body.light .border-white\/20 { border-color: rgba(120, 113, 108, 0.32) !important; }
+body.light .border-dashed    { border-color: rgba(180, 160, 130, 0.35) !important; }
+body.light .neo-brutalist-border { border-color: rgba(180, 160, 130, 0.22) !important; }
+body.light .neo-brutalist-border:hover { border-color: rgba(0, 122, 143, 0.4) !important; }
 
-/* ── Cyan glow e neon no modo claro ── */
-body.light .neon-text-glow {
-  text-shadow: 0 0 16px rgba(0, 153, 184, 0.4);
+/* ── Neon cyan → teal no modo claro ── */
+body.light .bg-neon-cyan              { background-color: #007A8F !important; }
+body.light .bg-neon-cyan\/5           { background-color: rgba(0, 122, 143, 0.06) !important; }
+body.light .bg-neon-cyan\/10          { background-color: rgba(0, 122, 143, 0.1) !important; }
+body.light .bg-neon-cyan\/\[0\.02\]   { background-color: rgba(0, 122, 143, 0.03) !important; }
+body.light .border-neon-cyan\/20      { border-color: rgba(0, 122, 143, 0.25) !important; }
+body.light .border-neon-cyan\/30      { border-color: rgba(0, 122, 143, 0.35) !important; }
+body.light .border-neon-cyan\/40      { border-color: rgba(0, 122, 143, 0.45) !important; }
+body.light .text-obsidian             { color: #F5F0E8 !important; }
+body.light .shadow-\[0_0_50px_rgba\(0\,240\,255\,0\.3\)\] {
+  box-shadow: 0 0 40px rgba(0, 122, 143, 0.25) !important;
 }
-body.light .bg-neon-cyan\/5  { background-color: rgba(0, 153, 184, 0.06) !important; }
-body.light .bg-neon-cyan\/10 { background-color: rgba(0, 153, 184, 0.1) !important; }
-body.light .bg-neon-cyan\/\[0\.02\] { background-color: rgba(0, 153, 184, 0.03) !important; }
-body.light .border-neon-cyan\/20 { border-color: rgba(0, 153, 184, 0.25) !important; }
-body.light .border-neon-cyan\/30 { border-color: rgba(0, 153, 184, 0.35) !important; }
-body.light .border-neon-cyan\/40 { border-color: rgba(0, 153, 184, 0.45) !important; }
+body.light .shadow-\[0_0_30px_rgba\(255\,255\,255\,0\.1\)\] {
+  box-shadow: 0 4px 20px rgba(28, 25, 23, 0.1) !important;
+}
 
-/* ── Inputs e selects ── */
+/* ── Inputs, selects, textareas ── */
 body.light input,
 body.light select,
 body.light textarea {
-  background: rgba(255, 255, 255, 0.85) !important;
-  border-color: rgba(148, 163, 184, 0.35) !important;
-  color: #111827 !important;
+  background: rgba(255, 252, 247, 0.9) !important;
+  border-color: rgba(180, 160, 130, 0.3) !important;
+  color: #1C1917 !important;
 }
 body.light input:focus,
 body.light select:focus,
 body.light textarea:focus {
-  border-color: rgba(0, 153, 184, 0.5) !important;
-  box-shadow: 0 0 0 3px rgba(0, 153, 184, 0.1);
+  border-color: rgba(0, 122, 143, 0.5) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 122, 143, 0.08);
 }
 body.light input::placeholder,
-body.light textarea::placeholder { color: #9CA3AF !important; }
+body.light textarea::placeholder { color: #A8A29E !important; }
+body.light select option { background: #F9F5EE; color: #1C1917; }
 
-/* ── Botão de seleção de role ── */
-body.light select.bg-white\/5 {
-  background: rgba(255, 255, 255, 0.9) !important;
-  color: #374151 !important;
+/* ── Botões brancos (ex: "Entrar com Google", "Confirmar Alterações") ── */
+body.light .bg-white.text-obsidian {
+  background: #1C1917 !important;
+  color: #F5F0E8 !important;
+}
+body.light .hover\:bg-neon-cyan:hover {
+  background: #007A8F !important;
+  color: #F5F0E8 !important;
 }
 
-/* ── Tabs ── */
-body.light .border-b { border-bottom-color: rgba(148, 163, 184, 0.2) !important; }
-
-/* ── Sidebar ativo ── */
-body.light .bg-neon-cyan\/10 { background-color: rgba(0, 153, 184, 0.1) !important; }
+/* ── Pill ativo na sidebar ── */
+body.light .bg-\[rgba\(0\,240\,255\,0\.1\)\] { background: rgba(0,122,143,0.1) !important; }
 
 /* ── Scrollbar ── */
-body.light ::-webkit-scrollbar { width: 6px; }
-body.light ::-webkit-scrollbar-track { background: #E2EAF4; }
-body.light ::-webkit-scrollbar-thumb { background: rgba(0, 153, 184, 0.3); border-radius: 3px; }
+body.light ::-webkit-scrollbar { width: 5px; }
+body.light ::-webkit-scrollbar-track { background: #EDE6D8; }
+body.light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 122, 143, 0.25);
+  border-radius: 4px;
+}
+body.light ::-webkit-scrollbar-thumb:hover { background: rgba(0, 122, 143, 0.45); }
 
 /* ── Quill editor ── */
 body.light .custom-quill-futuristic .ql-toolbar {
-  background: rgba(255, 255, 255, 0.8) !important;
-  border-color: rgba(148, 163, 184, 0.3) !important;
+  background: rgba(255, 252, 247, 0.9) !important;
+  border-color: rgba(180, 160, 130, 0.25) !important;
 }
-body.light .custom-quill-futuristic .ql-container { color: #111827 !important; }
-body.light .custom-quill-futuristic .ql-stroke { stroke: #475569 !important; }
-body.light .custom-quill-futuristic .ql-fill { fill: #475569 !important; }
-body.light .custom-quill-futuristic .ql-picker { color: #475569 !important; }
+body.light .custom-quill-futuristic .ql-container { color: #1C1917 !important; }
+body.light .custom-quill-futuristic .ql-stroke { stroke: #57534E !important; }
+body.light .custom-quill-futuristic .ql-fill { fill: #57534E !important; }
+body.light .custom-quill-futuristic .ql-picker { color: #57534E !important; }
+body.light .custom-quill-futuristic .ql-editor h1 { color: #1C1917 !important; }
 
 /* ─── Animations ─────────────────────────────────────────────────────────── */
 
