@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App';
-import { Home, PlusCircle, BookOpen, LogOut, Settings, Shield } from 'lucide-react';
+import { Home, PlusCircle, LogOut, Settings, Shield, Sun, Moon } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface LayoutProps {
@@ -11,6 +11,14 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children, setView, currentView }) => {
   const { user, logout } = useAuth();
+  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
+    (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
+  );
+
+  useEffect(() => {
+    document.body.classList.toggle('light', theme === 'light');
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   const menuItems = [
     { id: 'dashboard', label: 'INÍCIO', icon: Home },
@@ -59,6 +67,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, setView, currentView }
         </nav>
 
         <div className="mt-auto flex flex-col gap-8 items-center">
+          <button
+            onClick={() => setTheme(t => t === 'dark' ? 'light' : 'dark')}
+            className="text-white/20 hover:text-neon-cyan transition-colors duration-500"
+            title={theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+
           {user?.role === 'admin' && (
             <button
               onClick={() => setView('admin')}
